@@ -3,13 +3,15 @@ module Tetris where
 
 import Control.Monad.State
 import qualified Data.Sequence as Seq
-import Data.Maybe(fromMaybe, isJust)
+import Data.Sequence((!?), (><))
+import Data.Maybe(fromMaybe, fromJust, isJust)
 import Graphics.Gloss(Color, red, green, blue, 
                       yellow, cyan, magenta, orange)
 
 -- | Block is a m x n matrix (implemented as Sequence)
 -- that says if the block is full or not.
-type Field = Seq.Seq (Seq.Seq Occupied)
+type Field = Seq.Seq Row
+type Row   = Seq.Seq Occupied
 
 -- | Whether block is occupied or not.
 type Occupied = Maybe Color
@@ -37,8 +39,9 @@ numVertical   = 20
 numHorizontal = 10
 
 -- | Initialize playing field.
-initField = Seq.fromList fieldList
-  where fieldList = replicate numHorizontal $ replicate numVertical False
+initField :: Field
+initField = Seq.fromList $ replicate numHorizontal row
+  where row = Seq.fromList $ replicate numVertical Nothing
 
 translate :: Int -> Int -> Block -> Block
 translate xOffset yOffset block =  block {location = updatedLocation}
@@ -71,30 +74,81 @@ clockwise block = block {shape = map rotateC cubeOffsets}
 moveBlock :: (Block->Block) -> Field -> Block -> Block
 moveBlock move field block =  if legalMove then block' else block
   where 
-    block'@(Block shape' (x',y') _) = move block
-    cubeLocations                   = map (\(x,y)->(x+x',y+y')) shape'
-    legalMove                       = any (`isOccupied` field) cubeLocations
+    block'        = move block
+    cubeLocations = locateCubes block'
+    noCollision   = any (`isOccupied` field) cubeLocations
+    withinBounds  = inBounds block'
+    legalMove     = noCollision && withinBounds
 
+locateCubes :: Block -> [Location]
+locateCubes (Block offsets (x,y) _) = map (\(x',y')->(x'+x,y'+y)) offsets
+
+-- | FIXME: don't use fromJust. 
 isOccupied :: Location -> Field -> Bool
 isOccupied (x,y) field = isJust elem
-  where row  = fromMaybe Seq.Empty (field Seq.!? x)
-        elem = fromMaybe Nothing (row Seq.!? y)
+  where row  = fromJust $ field !? x
+        elem = fromJust $ row !? y
 
--- | TODO
+inBounds :: Block -> Bool
+inBounds block = inBoundsX && inBoundsY
+  where cubeLocations = locateCubes block
+        xPoints       = map fst cubeLocations
+        yPoints       = map snd cubeLocations
+        inBoundsX     = all (\x-> x>=0 && x<numHorizontal) xPoints
+        inBoundsY     = all (\y-> y>=0 && y<numVertical) yPoints
+
 hitRockBottom :: Block -> Field -> Bool
-hitRockBottom _ = error "Not Implemented"
+hitRockBottom block field = any (`isOccupied` field) belowEachCube
+  where 
+    cubeLocations = locateCubes block
+    belowEachCube = map (\pos -> (fst pos, snd pos -1)) cubeLocations
+
+-- | When the bottom of a block hits the playing field,
+-- transfer all information in the block to the field.
+-- This causes appropriate xy coordinates of the Field
+-- to go from `Nothing` to `Just Color`. 
+groundBlock :: Block -> Field -> Field
+groundBlock block@(Block _ _ color) = updateRecursive cubeLocations 
+  where 
+    cubeLocations = locateCubes block -- Don't use fromJust.
+
+    updateRecursive :: [Location] -> Field -> Field
+    updateRecursive loc field = foldl (flip $ updateColor color) field loc
+
+
+-- | Is this inefficient? 
+-- May be better to use a different data structure...
+-- FIXME: Don't use fromJust.
+updateColor :: Color -> Location -> Field -> Field
+updateColor color (x,y) field = field'
+  where row    = fromJust $ field !? x
+        row'   = Seq.update y (Just color) row
+        field' = Seq.update x row' field
+  
 
 -- | TODO
 updateGame :: (Block->Block) -> Block -> GameState
 updateGame _ = error "Not Implemented"
 
--- | TODO
-clearRows :: GameState -> GameState
-clearRows _ = error "Not Implemented"
 
--- | TODO
-gameOver :: Field -> Playing
-gameOver _ = error "Not Implemented"
+-- | Clears all rows at the bottom that are full. 
+clearFullRows :: Field -> Field
+clearFullRows field = 
+  if not bottomFull then field else clearFullRows $ clearRow field
+  where 
+    bottomFull :: Bool
+    bottomFull = all isJust . fromJust $ Seq.lookup 0 field
+
+    clearRow :: Field -> Field
+    clearRow field = tails >< head
+      where tails = fromJust $ Seq.lookup 1 $ Seq.tails field
+            head  = Seq.fromList [Seq.fromList $ replicate numVertical Nothing]
+
+-- | Given a block and field, 
+-- determines if the game is over or not.
+gameOver :: Block -> Field -> Playing
+gameOver block field = any (`isOccupied` field) $ locateCubes block
+
 
 initLocation :: Int -> Location
 initLocation x = (x, numVertical)
@@ -118,4 +172,4 @@ mkBlock S = Block sBlock (initLocation 5) magenta
 mkBlock Z = Block zBlock (initLocation 6) orange
   where zBlock = [(0,0), (0,1), (1,-1), (2,-1)]
 
-testBlock = mkBlock O
+testBlock = mkBlock I

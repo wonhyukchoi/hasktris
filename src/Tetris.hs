@@ -4,8 +4,8 @@ module Tetris where
 import Control.Monad.State
 import qualified Data.Sequence as Seq
 import Data.Maybe(fromMaybe, isJust)
-import qualified Graphics.Gloss as Gloss
-import Graphics.Gloss(Color)
+import Graphics.Gloss(Color, red, green, blue, 
+                      yellow, cyan, magenta, orange)
 
 -- | Block is a m x n matrix (implemented as Sequence)
 -- that says if the block is full or not.
@@ -18,14 +18,15 @@ type Occupied = Maybe Color
 -- Shape is a 4x1 list that holds the location offsets of each block
 -- w.r.t to the location of the entire block.
 -- The "location" of the entire block is its upper left corner.
-data Block = Block {shape     :: [Location]
+data Block = Block {shape     :: [Offsets]
                    ,location  :: Location
                    ,color     :: Color}
                    deriving (Show)
 
 -- | x,y coordinates. 
 type Location  = (Int, Int)
-data Tetromino = I | O | T | S | Z | J | L deriving (Show)
+type Offsets   = (Int, Int)
+data Tetromino = I | O | T | J | L | S | Z deriving (Show)
 
 type GameState  = State Field Playing
 type Playing    = Bool
@@ -57,14 +58,14 @@ counterClockwise :: Block -> Block
 counterClockwise block = block {shape = map rotateCC cubeOffsets}
   where cubeOffsets = shape block
         
-        rotateCC :: Location -> Location
+        rotateCC :: Offsets -> Offsets
         rotateCC (x,y) = (-y, x)
 
 clockwise :: Block -> Block
 clockwise block = block {shape = map rotateC cubeOffsets}
   where cubeOffsets = shape block
 
-        rotateC :: Location -> Location
+        rotateC :: Offsets -> Offsets
         rotateC (x,y) = (y, -x)
 
 moveBlock :: (Block->Block) -> Field -> Block -> Block
@@ -80,20 +81,41 @@ isOccupied (x,y) field = isJust elem
         elem = fromMaybe Nothing (row Seq.!? y)
 
 -- | TODO
--- hitRockBottom :: Block -> Field -> Bool
+hitRockBottom :: Block -> Field -> Bool
+hitRockBottom _ = error "Not Implemented"
 
--- -- | TODO
--- updateGame :: (Block->Block) -> Block -> GameState
+-- | TODO
+updateGame :: (Block->Block) -> Block -> GameState
+updateGame _ = error "Not Implemented"
 
--- -- | TODO
--- clearRow :: GameState -> GameState
+-- | TODO
+clearRows :: GameState -> GameState
+clearRows _ = error "Not Implemented"
 
--- -- | TODO
--- gameOver :: Field -> Playing
+-- | TODO
+gameOver :: Field -> Playing
+gameOver _ = error "Not Implemented"
+
+initLocation :: Int -> Location
+initLocation x = (x, numVertical)
 
 -- | Function to create new blocks.
+-- FIXME: allow random spawning of blocks. 
+-- FIXME: make the totality of the blocks appear at once.
 mkBlock :: Tetromino -> Block
-mkBlock J = Block [] (0,0) Gloss.red
-mkBlock _ = error "Not implemented"
+mkBlock I = Block iBlock (initLocation 0) red
+  where iBlock = [(0,0), (0,-1), (0,-2), (0,-3)]
+mkBlock O = Block oBlock (initLocation 1) blue
+  where oBlock = [(0,0), (1,0), (0,-1), (1,-1)]
+mkBlock T = Block tBlock (initLocation 2) green
+  where tBlock = [(0,0), (1,0), (2,0), (1,-1)]
+mkBlock J = Block jBlock (initLocation 3) yellow
+  where jBlock = [(0,0), (0,-1), (0,-2), (-1,-2)]
+mkBlock L = Block lBlock (initLocation 4) cyan
+  where lBlock = [(0,0), (0,-1), (0,-2), (1,-2)]
+mkBlock S = Block sBlock (initLocation 5) magenta
+  where sBlock = [(0,0), (1,0), (0,-1), (-1,-1)]
+mkBlock Z = Block zBlock (initLocation 6) orange
+  where zBlock = [(0,0), (0,1), (1,-1), (2,-1)]
 
 testBlock = mkBlock O

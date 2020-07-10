@@ -1,3 +1,6 @@
+# Local Testing
+fast.*
+
 dist
 dist-*
 cabal-dev

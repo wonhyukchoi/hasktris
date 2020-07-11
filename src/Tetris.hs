@@ -36,7 +36,7 @@ data Tetromino = I | O | T | J | L | S | Z deriving (Show)
 data Game      = Game {field :: Field
                       ,score :: Int
                       ,rand  :: StdGen
-                      ,block    :: Block}
+                      ,block :: Block}
                       deriving (Show)
 type GameState  = State Game Playing
 type Playing    = Bool
@@ -121,7 +121,7 @@ hitRockBottom block field = any (`isOccupied` field) belowEachCube
     cubeLocations = locateCubes block
     belowEachCube = map (\pos -> (fst pos, snd pos -1)) cubeLocations
 
--- | When the bottom of a block hiinitBlockts the playing field,
+-- | When the bottom of a block hits the playing field,
 -- transfer all information in the block to the field.
 -- This causes appropriate xy coordinates of the Field
 -- to go from `Nothing` to `Just Color`. 

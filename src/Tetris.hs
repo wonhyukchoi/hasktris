@@ -1,7 +1,10 @@
+{-# LANGUAGE MultiWayIf #-}
+
 -- | Module that holds everything related to the game logic.
 module Tetris where
 
 import Control.Monad.State
+import System.Random
 import qualified Data.Sequence as Seq
 import Data.Sequence((!?), (><))
 import Data.Maybe(fromMaybe, fromJust, isJust)
@@ -20,9 +23,9 @@ type Occupied = Maybe Color
 -- Shape is a 4x1 list that holds the location offsets of each block
 -- w.r.t to the location of the entire block.
 -- The "location" of the entire block is its upper left corner.
-data Block = Block {shape     :: [Offsets]
-                   ,location  :: Location
-                   ,color     :: Color}
+data Block = Block {shape    :: [Offsets]
+                   ,location :: Location
+                   ,color    :: Color}
                    deriving (Show)
 
 -- | x,y coordinates. 
@@ -30,7 +33,11 @@ type Location  = (Int, Int)
 type Offsets   = (Int, Int)
 data Tetromino = I | O | T | J | L | S | Z deriving (Show)
 
-type GameState  = State Field Playing
+data Game      = Game {field :: Field
+                      ,score :: Int
+                      ,rand  :: StdGen
+                      ,block    :: Block}
+type GameState  = State Game Playing
 type Playing    = Bool
 
 -- | Size of playing field.
@@ -42,6 +49,16 @@ numHorizontal = 10
 initField :: Field
 initField = Seq.fromList $ replicate numHorizontal row
   where row = Seq.fromList $ replicate numVertical Nothing
+
+initRand :: StdGen
+initRand = mkStdGen 0x2f
+
+initBlock :: Block
+initBlock = mkBlockByInt $ evalState randomize initRand 
+
+initGame :: Game
+initGame = Game{field=initField, score=0
+               ,rand=initRand, block=initBlock}
 
 translate :: Int -> Int -> Block -> Block
 translate xOffset yOffset block =  block {location = updatedLocation}
@@ -71,8 +88,8 @@ clockwise block = block {shape = map rotateC cubeOffsets}
         rotateC :: Offsets -> Offsets
         rotateC (x,y) = (y, -x)
 
-moveBlock :: (Block->Block) -> Field -> Block -> Block
-moveBlock move field block =  if legalMove then block' else block
+moveBlock :: (Block->Block) -> Block -> Field -> Block
+moveBlock move block field =  if legalMove then block' else block
   where 
     block'        = move block
     cubeLocations = locateCubes block'
@@ -103,7 +120,7 @@ hitRockBottom block field = any (`isOccupied` field) belowEachCube
     cubeLocations = locateCubes block
     belowEachCube = map (\pos -> (fst pos, snd pos -1)) cubeLocations
 
--- | When the bottom of a block hits the playing field,
+-- | When the bottom of a block hiinitBlockts the playing field,
 -- transfer all information in the block to the field.
 -- This causes appropriate xy coordinates of the Field
 -- to go from `Nothing` to `Just Color`. 
@@ -124,23 +141,48 @@ updateColor color (x,y) field = field'
   where row    = fromJust $ field !? x
         row'   = Seq.update y (Just color) row
         field' = Seq.update x row' field
+
+randomize :: State StdGen Int
+randomize = state $ randomR (0,6)
+
+playGame :: (Block->Block) -> GameState
+playGame move = do
+  game@(Game field score rand block) <- get
+
+  let block'           = moveBlock move block field
+      hasStopped       = hitRockBottom block' field
+      field'           = groundBlock block' field
+      (randVal, rand') = runState randomize rand
+      game'            = clearFullRows (Game field' score rand' block')
+      newBlock         = mkBlockByInt randVal  
   
-
--- | TODO
-updateGame :: (Block->Block) -> Block -> GameState
-updateGame _ = error "Not Implemented"
-
+  if 
+    | not hasStopped -> do
+    put game{block = block'}
+    return True
+    
+    | gameOver newBlock field' ->
+       return False
+    
+    | otherwise -> do
+      put game'
+      return True
 
 -- | Clears all rows at the bottom that are full. 
-clearFullRows :: Field -> Field
-clearFullRows field = 
-  if not bottomFull then field else clearFullRows $ clearRow field
+clearFullRows :: Game -> Game
+clearFullRows game@(Game field score _ _) = 
+  if not bottomFull then game 
+    else clearFullRows game{field = newField, score = newScore}
+
   where 
+    newField = clearBottom field
+    newScore = score + 100
+
     bottomFull :: Bool
     bottomFull = all isJust . fromJust $ Seq.lookup 0 field
 
-    clearRow :: Field -> Field
-    clearRow field = tails >< head
+    clearBottom :: Field -> Field
+    clearBottom field = tails >< head
       where tails = fromJust $ Seq.lookup 1 $ Seq.tails field
             head  = Seq.fromList [Seq.fromList $ replicate numVertical Nothing]
 
@@ -172,4 +214,12 @@ mkBlock S = Block sBlock (initLocation 5) magenta
 mkBlock Z = Block zBlock (initLocation 6) orange
   where zBlock = [(0,0), (0,1), (1,-1), (2,-1)]
 
-testBlock = mkBlock I
+mkBlockByInt :: Int -> Block
+mkBlockByInt 0 = mkBlock I
+mkBlockByInt 1 = mkBlock O
+mkBlockByInt 2 = mkBlock T
+mkBlockByInt 3 = mkBlock J
+mkBlockByInt 4 = mkBlock L
+mkBlockByInt 5 = mkBlock S
+mkBlockByInt 6 = mkBlock Z
+mkBlockByInt _ = error "This should never happen"

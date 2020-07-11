@@ -37,6 +37,7 @@ data Game      = Game {field :: Field
                       ,score :: Int
                       ,rand  :: StdGen
                       ,block    :: Block}
+                      deriving (Show)
 type GameState  = State Game Playing
 type Playing    = Bool
 
@@ -145,8 +146,8 @@ updateColor color (x,y) field = field'
 randomize :: State StdGen Int
 randomize = state $ randomR (0,6)
 
-playGame :: (Block->Block) -> GameState
-playGame move = do
+updateGame :: (Block->Block) -> GameState
+updateGame move = do
   game@(Game field score rand block) <- get
 
   let block'           = moveBlock move block field

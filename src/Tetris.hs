@@ -51,15 +51,25 @@ initField :: Field
 initField = Seq.fromList $ replicate numHorizontal row
   where row = Seq.fromList $ replicate numVertical Nothing
 
-initRand :: StdGen
-initRand = mkStdGen 0x2f
+startGame :: StdGen -> Game
+startGame rand = Game {field   = initField
+                      ,score   = 0
+                      ,rand    = rand'
+                      ,block   = initBlock
+                      ,playing = True}
+  where 
+    (randVal, rand') = runState randomize rand
+    initBlock        = mkBlockByInt randVal
 
-initBlock :: Block
-initBlock = mkBlockByInt $ evalState randomize initRand 
+testRand :: StdGen
+testRand = mkStdGen 0x2f
 
-initGame :: Game
-initGame = Game{field=initField, score=0
-               ,rand=initRand, block=initBlock
+testBlock :: Block
+testBlock = mkBlockByInt $ evalState randomize testRand 
+
+testGame :: Game
+testGame = Game{field=initField, score=0
+               ,rand=testRand, block=testBlock
                ,playing=True}
 
 translate :: Int -> Int -> Block -> Block
@@ -100,7 +110,7 @@ moveBlock move block field =  if legalMove then block' else block
     cubeLocations = locateCubes block'
     collision     = any (`isOccupied` field) cubeLocations
     withinBounds  = inBounds block'
-    legalMove     = not collision && withinBounds
+    legalMove     = withinBounds && not collision
 
 locateCubes :: Block -> [Location]
 locateCubes (Block offsets (x,y) _) = map (\(x',y')->(x'+x,y'+y)) offsets
@@ -120,10 +130,12 @@ inBounds block = inBoundsX && inBoundsY
         inBoundsY     = all (>=0) yPoints
 
 hitRockBottom :: Block -> Field -> Bool
-hitRockBottom block field = any (`isOccupied` field) belowEachCube
+hitRockBottom block field = any cubeHitBottom belowEachCube
   where 
-    cubeLocations = locateCubes block
-    belowEachCube = map (\pos -> (fst pos, snd pos -1)) cubeLocations
+    cubeLocations    = locateCubes block
+    belowEachCube    = map (\pos -> (fst pos, snd pos -1)) cubeLocations
+    hitYBottom c     = snd c <= -1
+    cubeHitBottom c  = isOccupied c field || hitYBottom c 
 
 -- | When the bottom of a block hits the playing field,
 -- transfer all information in the block to the field.
@@ -153,16 +165,17 @@ randomize = state $ randomR (0,6)
 updateGame :: (Block->Block) -> Game -> Game
 updateGame move game@(Game field score rand block playing) = 
 
-  let block'           = moveBlock move block field
-      hasStopped       = hitRockBottom block' field
-      field'           = groundBlock block' field
-      (randVal, rand') = runState randomize rand
-      game'            = clearFullRows (Game field' score rand' block' playing)
-      newBlock         = mkBlockByInt randVal  
-  
+  let 
+    block'           = moveBlock move block field
+    falling          = not $ hitRockBottom block' field
+    field'           = groundBlock block' field
+    (randVal, rand') = runState randomize rand
+    newBlock         = mkBlockByInt randVal
+    game'            = clearFullRows (Game field' score rand' newBlock playing)
+        
   in 
     if 
-    | not hasStopped -> 
+    | falling -> 
       game{block = block'}
     
     | gameOver newBlock field' ->
@@ -215,7 +228,7 @@ mkBlock L = Block lBlock (initLocation 4) cyan
 mkBlock S = Block sBlock (initLocation 5) magenta
   where sBlock = [(0,0), (1,0), (0,-1), (-1,-1)]
 mkBlock Z = Block zBlock (initLocation 6) orange
-  where zBlock = [(0,0), (0,1), (1,-1), (2,-1)]
+  where zBlock = [(0,0), (1,0), (1,-1), (2,-1)]
 
 mkBlockByInt :: Int -> Block
 mkBlockByInt 0 = mkBlock I

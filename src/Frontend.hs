@@ -7,10 +7,13 @@ import qualified Graphics.Gloss as G
 import Data.Foldable(toList)
 import Data.Bifunctor(bimap)
 import Graphics.Gloss.Interface.Pure.Game
-import Control.Monad.State
+import System.Random
 
 playGame :: IO ()
-playGame = play window background fps initGame render handleKeys update
+playGame = do
+  rand <- getStdGen
+  let initGame = startGame rand
+  play window background fps initGame render handleKeys update
 
 
 -- | TODO: add black screen on top to hide falling block

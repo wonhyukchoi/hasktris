@@ -141,14 +141,13 @@ hitRockBottom block field = any cubeHitBottom belowEachCube
 -- transfer all information in the block to the field.
 -- This causes appropriate xy coordinates of the Field
 -- to go from `Nothing` to `Just Color`. 
-groundBlock :: Block -> Field -> Field
-groundBlock block@(Block _ _ color) = updateRecursive cubeLocations 
+dumpBlock :: Block -> Field -> Field
+dumpBlock block@(Block _ _ color) = updateRecursive cubeLocations 
   where 
     cubeLocations = locateCubes block -- Don't use fromJust.
 
     updateRecursive :: [Location] -> Field -> Field
     updateRecursive loc field = foldl (flip $ updateColor color) field loc
-
 
 -- | Is this inefficient? 
 -- May be better to use a different data structure...
@@ -168,7 +167,7 @@ updateGame move game@(Game field score rand block playing) =
   let 
     block'           = moveBlock move block field
     falling          = not $ hitRockBottom block' field
-    field'           = groundBlock block' field
+    field'           = dumpBlock block' field
     (randVal, rand') = runState randomize rand
     newBlock         = mkBlockByInt randVal
     game'            = clearFullRows (Game field' score rand' newBlock playing)

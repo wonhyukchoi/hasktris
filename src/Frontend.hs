@@ -13,13 +13,8 @@ playGame :: IO ()
 playGame = do
   rand <- getStdGen
   let initGame = startGame rand
-  play window background fps initGame render handleKeys update
+  play window background fps initGame displayGame handleKeys update
 
-
--- | TODO: add black screen on top to hide falling block
-render :: Game -> G.Picture
-render (Game field score rand block playing) = 
-  G.Pictures [gameFrame, displayField field, displayBlock block]
 
 -- | Maps key inputs to appopriate block movement actions.
 handleKeys :: Event -> Game -> Game
@@ -58,6 +53,37 @@ xBase, yBase :: Float
 xBase = -(fromIntegral fullWidth/2 - fromIntegral sideMargin)+ blockSize/2
 yBase = -(fromIntegral fullHeight/2 - fromIntegral bottomMargin) + blockSize/2
 
+tetrisText :: G.Picture
+tetrisText = moveTitle . addColor . scaleDown $ text
+  where 
+    coolBlue    = G.makeColorI 0xcc 0xff 0xee 0
+    lightPurple = G.makeColorI 0xff 0xb3 0xff 0
+    addColor    = G.color lightPurple
+    xPosition   = -160
+    yPosition   = 
+      fromIntegral ((fullHeight `div` 2 - topMargin) + topMargin `div` 2)
+    moveTitle   = G.translate xPosition yPosition
+    scaleFactor = 0.35
+    scaleDown   = G.scale scaleFactor scaleFactor
+    text        = G.Text "T E T R I S"
+
+scoreText :: G.Picture
+scoreText = moveText . G.color G.white . scaleDown $ text
+  where 
+    xPosition   = -350
+    yPosition   = 350
+    moveText    = G.translate xPosition yPosition
+    scaleFactor = 0.35
+    scaleDown   = G.scale scaleFactor scaleFactor
+    text        = G.Text "score"
+
+blackCover :: G.Picture
+blackCover =  move . mkBlack $ shape
+  where 
+    mkBlack = G.color G.black
+    yLoc    = fromIntegral ((fullHeight `div` 2 - topMargin) + topMargin `div` 2)
+    move    = G.translate 0.0 yLoc
+    shape   = G.rectangleSolid (fromIntegral fullWidth) (fromIntegral topMargin)
 
 gameFrame :: G.Picture
 gameFrame = G.color G.white $ G.rectangleWire width height
@@ -99,6 +125,26 @@ displayElem :: Occupied -> G.Picture
 displayElem Nothing          = G.Blank
 displayElem (Just cubeColor) = G.translate xBase yBase $ G.color cubeColor cube
 
+displayScore :: Int -> G.Picture
+displayScore score = moveScore . addColor . scaleDown $ text 
+  where
+    addColor    = G.color G.white
+    xPosition   = -350
+    yPosition   = 275
+    moveScore   = G.translate xPosition yPosition
+    scaleFactor = 0.35
+    scaleDown   = G.scale scaleFactor scaleFactor
+    text        = G.Text $ show score   
+
+displayGame :: Game -> G.Picture
+displayGame (Game field score rand block playing) = 
+  G.Pictures [gameFrame
+             ,displayField field
+             ,displayBlock block
+             ,displayScore score
+             ,blackCover
+             ,tetrisText
+             ,scoreText]
 
 background :: G.Color
 background = black

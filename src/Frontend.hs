@@ -9,13 +9,13 @@ import Data.Bifunctor(bimap)
 import Graphics.Gloss.Interface.Pure.Game
 import Control.Monad.State
 
-main :: IO ()
-main = testDisplay sampleImage
+playGame :: IO ()
+-- main = testDisplay sampleImage
 -- main = G.display window background $ render initGame
--- main = G.animate window background frame
---   where 
---     frame :: Float -> G.Picture
---     frame sec = render $ moveBlock moveDown sec initGame
+playGame = G.animate window background frame
+  where 
+    frame :: Float -> G.Picture
+    frame sec = render $ gravitate sec initGame
 
 testDisplay :: G.Picture -> IO ()
 testDisplay = G.display window background
@@ -38,21 +38,18 @@ gameWidth    = fullWidth - (2 * sideMargin)
 blockSize :: Float
 blockSize =  40
 
-gameBottom, gameLeft :: Float
-gameBottom = -(fromIntegral fullHeight/2 - fromIntegral bottomMargin)
-gameLeft = -(fromIntegral fullWidth/2 - fromIntegral sideMargin)  
-
 xBase, yBase :: Float
-xBase = gameLeft + blockSize/2
-yBase = gameBottom + blockSize/2
+xBase = -(fromIntegral fullWidth/2 - fromIntegral sideMargin)+ blockSize/2
+yBase = -(fromIntegral fullHeight/2 - fromIntegral bottomMargin) + blockSize/2
 
--- | TODO
+-- | TODO: add black screen on top to hide falling block
 render :: Game -> G.Picture
-render game = G.Pictures [gameFrame, displayBlock $ mkBlock T]
+render (Game field score rand block) = 
+  G.Pictures [gameFrame, displayField field, displayBlock block]
 
 -- | For testing purposes
-moveGame :: Float -> Game -> Game
-moveGame f = execState (updateGame moveDown)
+gravitate :: Float -> Game -> Game
+gravitate f = execState (updateGame $ moveDownFloats f) 
 
 gameFrame :: G.Picture
 gameFrame = G.color G.white $ G.rectangleWire width height
@@ -64,14 +61,14 @@ cube = G.rectangleSolid blockSize blockSize
 
 displayBlock :: Block -> G.Picture
 displayBlock block@(Block shape location cubeColor) = 
-  G.pictures $ map translatePair locations' <*> [cube]
+  G.pictures $ map translatePair locations' <*> [oneCube]
   where 
     locations     = locateCubes block
     upSizeDim     = (* blockSize) . fromIntegral
-    fixDimX x     = upSizeDim x + gameLeft
-    fixDimY y     = upSizeDim y + gameBottom
+    fixDimX x     = upSizeDim x + xBase
+    fixDimY y     = upSizeDim y + yBase
     locations'    = map (bimap fixDimX fixDimY) locations
-    cube          = G.color cubeColor cube
+    oneCube       = G.color cubeColor cube
     translatePair = uncurry G.translate
 
 displayField :: Field -> G.Picture

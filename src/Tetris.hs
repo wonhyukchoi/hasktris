@@ -72,6 +72,9 @@ moveLeft = translate (-1) 0
 moveRight :: Block -> Block
 moveRight = translate 1 0
 
+moveDownFloats :: Float -> Block -> Block
+moveDownFloats n = translate 0 (-(round n))
+
 moveDown :: Block -> Block
 moveDown = translate 0 (-1)
 
@@ -94,9 +97,9 @@ moveBlock move block field =  if legalMove then block' else block
   where 
     block'        = move block
     cubeLocations = locateCubes block'
-    noCollision   = any (`isOccupied` field) cubeLocations
+    collision     = any (`isOccupied` field) cubeLocations
     withinBounds  = inBounds block'
-    legalMove     = noCollision && withinBounds
+    legalMove     = not collision && withinBounds
 
 locateCubes :: Block -> [Location]
 locateCubes (Block offsets (x,y) _) = map (\(x',y')->(x'+x,y'+y)) offsets
@@ -105,7 +108,7 @@ locateCubes (Block offsets (x,y) _) = map (\(x',y')->(x'+x,y'+y)) offsets
 isOccupied :: Location -> Field -> Bool
 isOccupied (x,y) field = isJust elem
   where row  = fromJust $ field !? x
-        elem = fromJust $ row !? y
+        elem = fromMaybe Nothing $ row !? y
 
 inBounds :: Block -> Bool
 inBounds block = inBoundsX && inBoundsY
@@ -113,7 +116,7 @@ inBounds block = inBoundsX && inBoundsY
         xPoints       = map fst cubeLocations
         yPoints       = map snd cubeLocations
         inBoundsX     = all (\x-> x>=0 && x<numHorizontal) xPoints
-        inBoundsY     = all (\y-> y>=0 && y<numVertical) yPoints
+        inBoundsY     = all (>=0) yPoints
 
 hitRockBottom :: Block -> Field -> Bool
 hitRockBottom block field = any (`isOccupied` field) belowEachCube

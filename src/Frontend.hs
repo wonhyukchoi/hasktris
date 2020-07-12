@@ -9,48 +9,29 @@ import Data.Bifunctor(bimap)
 import Graphics.Gloss.Interface.Pure.Game
 import Control.Monad.State
 
--- playGame :: IO ()
--- -- main = testDisplay sampleImage
--- -- main = G.display window background $ render initGame
--- -- playGame = G.animate window background frame
--- --   where 
--- --     frame :: Float -> G.Picture
--- --     frame sec = render $ gravitate sec initGame
-playGame = play window background fps initGameState renderState handleKeys update
+playGame :: IO ()
+playGame = play window background fps initGame render handleKeys update
 
 
 -- | TODO: add black screen on top to hide falling block
 render :: Game -> G.Picture
-render (Game field score rand block) = 
+render (Game field score rand block playing) = 
   G.Pictures [gameFrame, displayField field, displayBlock block]
 
-renderState :: GameState -> G.Picture
-renderState gameState = 
-  if isPlaying 
-    then G.Pictures [gameFrame, displayField field, displayBlock block]
-    else G.Pictures [gameFrame]
-  where 
-    (isPlaying, (Game field score rand block)) = runState gameState initGame
-
 -- | Maps key inputs to appopriate block movement actions.
-handleKeys :: Event -> GameState
+handleKeys :: Event -> Game -> Game
 handleKeys (EventKey (SpecialKey KeyDown) _ _ _)   = updateGame moveDown
 handleKeys (EventKey (SpecialKey KeyLeft) _ _ _)   = updateGame moveLeft
 handleKeys (EventKey (SpecialKey KeyRight) _ _ _)  = updateGame moveRight
-handleKeys (EventKey (SpecialKey KeySpace) _ _ _)  = updateGame clockwise
+handleKeys (EventKey (SpecialKey KeySpace) _ _ _)  = updateGame counterClockwise
+handleKeys _                                       = id
 
-update :: Float -> GameState
-update sec = updateGame $ moveDownFloats sec
+update :: Float -> Game -> Game
+update = updateGame . moveDownFloats
 
 -- | Frames per second.
 fps :: Int
 fps = 1
-
-testGame :: IO ()
-testGame = G.animate window background frame
-  where 
-    frame :: Float -> G.Picture
-    frame sec = render $ gravitate sec initGame
 
 -- | Dimensions of UI.
 fullHeight, fullWidth :: Int  
@@ -74,9 +55,6 @@ xBase, yBase :: Float
 xBase = -(fromIntegral fullWidth/2 - fromIntegral sideMargin)+ blockSize/2
 yBase = -(fromIntegral fullHeight/2 - fromIntegral bottomMargin) + blockSize/2
 
--- | For testing purposes
-gravitate :: Float -> Game -> Game
-gravitate f = execState (updateGame $ moveDownFloats f) 
 
 gameFrame :: G.Picture
 gameFrame = G.color G.white $ G.rectangleWire width height

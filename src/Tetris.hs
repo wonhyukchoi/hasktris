@@ -33,13 +33,13 @@ type Location  = (Int, Int)
 type Offsets   = (Int, Int)
 data Tetromino = I | O | T | J | L | S | Z deriving (Show)
 
-data Game      = Game {field :: Field
-                      ,score :: Int
-                      ,rand  :: StdGen
-                      ,block :: Block}
+data Game      = Game {field   :: Field
+                      ,score   :: Int
+                      ,rand    :: StdGen
+                      ,block   :: Block
+                      ,playing :: IsPlaying}
                       deriving (Show)
-type GameState  = State Game Playing
-type Playing    = Bool
+type IsPlaying  = Bool
 
 -- | Size of playing field.
 numVertical, numHorizontal :: Int
@@ -59,12 +59,8 @@ initBlock = mkBlockByInt $ evalState randomize initRand
 
 initGame :: Game
 initGame = Game{field=initField, score=0
-               ,rand=initRand, block=initBlock}
-
-initGameState :: GameState
-initGameState = do
-  put initGame
-  return True
+               ,rand=initRand, block=initBlock
+               ,playing=True}
 
 translate :: Int -> Int -> Block -> Block
 translate xOffset yOffset block =  block {location = updatedLocation}
@@ -154,32 +150,30 @@ updateColor color (x,y) field = field'
 randomize :: State StdGen Int
 randomize = state $ randomR (0,6)
 
-updateGame :: (Block->Block) -> GameState
-updateGame move = do
-  game@(Game field score rand block) <- get
+updateGame :: (Block->Block) -> Game -> Game
+updateGame move game@(Game field score rand block playing) = 
 
   let block'           = moveBlock move block field
       hasStopped       = hitRockBottom block' field
       field'           = groundBlock block' field
       (randVal, rand') = runState randomize rand
-      game'            = clearFullRows (Game field' score rand' block')
+      game'            = clearFullRows (Game field' score rand' block' playing)
       newBlock         = mkBlockByInt randVal  
   
-  if 
-    | not hasStopped -> do
-    put game{block = block'}
-    return True
+  in 
+    if 
+    | not hasStopped -> 
+      game{block = block'}
     
     | gameOver newBlock field' ->
-       return False
+       game{playing=False}
     
-    | otherwise -> do
-      put game'
-      return True
+    | otherwise -> 
+      game'
 
 -- | Clears all rows at the bottom that are full. 
 clearFullRows :: Game -> Game
-clearFullRows game@(Game field score _ _) = 
+clearFullRows game@(Game field score _ _ _) = 
   if not bottomFull then game 
     else clearFullRows game{field = newField, score = newScore}
 
@@ -197,7 +191,7 @@ clearFullRows game@(Game field score _ _) =
 
 -- | Given a block and field, 
 -- determines if the game is over or not.
-gameOver :: Block -> Field -> Playing
+gameOver :: Block -> Field -> IsPlaying
 gameOver block field = any (`isOccupied` field) $ locateCubes block
 
 

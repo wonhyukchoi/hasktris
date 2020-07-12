@@ -9,16 +9,48 @@ import Data.Bifunctor(bimap)
 import Graphics.Gloss.Interface.Pure.Game
 import Control.Monad.State
 
-playGame :: IO ()
--- main = testDisplay sampleImage
--- main = G.display window background $ render initGame
-playGame = G.animate window background frame
+-- playGame :: IO ()
+-- -- main = testDisplay sampleImage
+-- -- main = G.display window background $ render initGame
+-- -- playGame = G.animate window background frame
+-- --   where 
+-- --     frame :: Float -> G.Picture
+-- --     frame sec = render $ gravitate sec initGame
+playGame = play window background fps initGameState renderState handleKeys update
+
+
+-- | TODO: add black screen on top to hide falling block
+render :: Game -> G.Picture
+render (Game field score rand block) = 
+  G.Pictures [gameFrame, displayField field, displayBlock block]
+
+renderState :: GameState -> G.Picture
+renderState gameState = 
+  if isPlaying 
+    then G.Pictures [gameFrame, displayField field, displayBlock block]
+    else G.Pictures [gameFrame]
+  where 
+    (isPlaying, (Game field score rand block)) = runState gameState initGame
+
+-- | Maps key inputs to appopriate block movement actions.
+handleKeys :: Event -> GameState
+handleKeys (EventKey (SpecialKey KeyDown) _ _ _)   = updateGame moveDown
+handleKeys (EventKey (SpecialKey KeyLeft) _ _ _)   = updateGame moveLeft
+handleKeys (EventKey (SpecialKey KeyRight) _ _ _)  = updateGame moveRight
+handleKeys (EventKey (SpecialKey KeySpace) _ _ _)  = updateGame clockwise
+
+update :: Float -> GameState
+update sec = updateGame $ moveDownFloats sec
+
+-- | Frames per second.
+fps :: Int
+fps = 1
+
+testGame :: IO ()
+testGame = G.animate window background frame
   where 
     frame :: Float -> G.Picture
     frame sec = render $ gravitate sec initGame
-
-testDisplay :: G.Picture -> IO ()
-testDisplay = G.display window background
 
 -- | Dimensions of UI.
 fullHeight, fullWidth :: Int  
@@ -41,11 +73,6 @@ blockSize =  40
 xBase, yBase :: Float
 xBase = -(fromIntegral fullWidth/2 - fromIntegral sideMargin)+ blockSize/2
 yBase = -(fromIntegral fullHeight/2 - fromIntegral bottomMargin) + blockSize/2
-
--- | TODO: add black screen on top to hide falling block
-render :: Game -> G.Picture
-render (Game field score rand block) = 
-  G.Pictures [gameFrame, displayField field, displayBlock block]
 
 -- | For testing purposes
 gravitate :: Float -> Game -> Game
@@ -98,10 +125,3 @@ background = black
 window :: G.Display
 window = G.InWindow "Hasktris" (fullWidth, fullHeight) (offset, offset) 
   where offset = 100
-
-sampleField :: Field
-sampleField = Seq.fromList [Seq.fromList [Just red, Nothing, Just blue, Just yellow],
-                            Seq.fromList [Nothing, Just red, Just yellow, Just blue]]
-
-sampleImage :: G.Picture
-sampleImage = G.Pictures [gameFrame, displayField sampleField]

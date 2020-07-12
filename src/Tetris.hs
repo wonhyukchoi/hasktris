@@ -61,6 +61,11 @@ initGame :: Game
 initGame = Game{field=initField, score=0
                ,rand=initRand, block=initBlock}
 
+initGameState :: GameState
+initGameState = do
+  put initGame
+  return True
+
 translate :: Int -> Int -> Block -> Block
 translate xOffset yOffset block =  block {location = updatedLocation}
   where (x,y)           = location block

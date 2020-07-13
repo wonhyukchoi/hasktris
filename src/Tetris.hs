@@ -13,8 +13,8 @@ import Graphics.Gloss(Color, red, green, blue,
 
 -- | Block is a m x n matrix (implemented as Sequence)
 -- that says if the block is full or not.
-type Field = Seq.Seq Row
-type Row   = Seq.Seq Occupied
+type Field    = Seq.Seq Column
+type Column   = Seq.Seq Occupied
 
 -- | Whether block is occupied or not.
 type Occupied = Maybe Color
@@ -61,16 +61,20 @@ startGame rand = Game {field   = initField
     (randVal, rand') = runState randomize rand
     initBlock        = mkBlockByInt randVal
 
-testRand :: StdGen
-testRand = mkStdGen 0x2f
+lightField :: Field
+lightField = Seq.fromList [Seq.fromList [Nothing, Just red, Just blue]
+                          ,Seq.fromList [Just orange, Nothing, Nothing]]
 
-testBlock :: Block
-testBlock = mkBlockByInt $ evalState randomize testRand 
+-- testRand :: StdGen
+-- testRand = mkStdGen 0x2f
 
-testGame :: Game
-testGame = Game{field=initField, score=0
-               ,rand=testRand, block=testBlock
-               ,playing=True}
+-- testBlock :: Block
+-- testBlock = mkBlockByInt $ evalState randomize testRand 
+
+-- testGame :: Game
+-- testGame = Game{field=initField, score=0
+--                ,rand=testRand, block=testBlock
+--                ,playing=True}
 
 translate :: Int -> Int -> Block -> Block
 translate xOffset yOffset block =  block {location = updatedLocation}
@@ -118,8 +122,8 @@ locateCubes (Block offsets (x,y) _) = map (\(x',y')->(x'+x,y'+y)) offsets
 -- | FIXME: don't use fromJust. 
 isOccupied :: Location -> Field -> Bool
 isOccupied (x,y) field = isJust elem
-  where row  = fromJust $ field !? x
-        elem = fromMaybe Nothing $ row !? y
+  where xElems  = fromJust $ field !? x
+        elem    = fromMaybe Nothing $ xElems !? y
 
 inBounds :: Block -> Bool
 inBounds block = inBoundsX && inBoundsY
@@ -138,11 +142,11 @@ hitRockBottom block field = any cubeHitBottom belowEachCube
     cubeHitBottom c  = isOccupied c field || hitYBottom c 
 
 -- | When the bottom of a block hits the playing field,
--- transfer all information in the block to the field.
+-- transfer block's colors to the field.
 -- This causes appropriate xy coordinates of the Field
 -- to go from `Nothing` to `Just Color`. 
-dumpBlock :: Block -> Field -> Field
-dumpBlock block@(Block _ _ color) = updateRecursive cubeLocations 
+dumpColor :: Block -> Field -> Field
+dumpColor block@(Block _ _ color) = updateRecursive cubeLocations 
   where 
     cubeLocations = locateCubes block -- Don't use fromJust.
 
@@ -167,11 +171,15 @@ updateGame move game@(Game field score rand block playing) =
   let 
     block'           = moveBlock move block field
     falling          = not $ hitRockBottom block' field
-    field'           = dumpBlock block' field
+    field'           = dumpColor block' field
     (randVal, rand') = runState randomize rand
     newBlock         = mkBlockByInt randVal
     game'            = clearFullRows (Game field' score rand' newBlock playing)
-        
+    -- FIXME
+    -- game'@(Game field'' score' _ _ _) = 
+    --   clearFullRows (Game field' score rand' block' playing)
+    -- game'' = Game field'' score' rand' block' playing
+
   in 
     if 
     | falling -> 

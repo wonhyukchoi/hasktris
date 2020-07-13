@@ -15,6 +15,8 @@ playGame = do
   let initGame = startGame rand
   play window background fps initGame displayGame handleKeys update
 
+displayer :: G.Picture -> IO ()
+displayer = G.display window background
 
 -- | Maps key inputs to appopriate block movement actions.
 handleKeys :: Event -> Game -> Game
@@ -105,21 +107,26 @@ displayBlock block@(Block shape location cubeColor) =
     oneCube       = G.color cubeColor cube
     translatePair = uncurry G.translate
 
+sampleField :: Field
+sampleField = Seq.fromList [Seq.fromList [Nothing, Just red, Just blue]
+                           ,Seq.fromList [Just yellow, Nothing, Just blue]]
+
+-- | Fix these areas
 displayField :: Field -> G.Picture
 displayField field = 
-  G.Pictures $ zipWith (\pic row-> G.translate 0 (row*blockSize) pic) rowPics rowNums
+  G.Pictures $ zipWith (\pic col-> G.translate (col*blockSize) 0 pic) colPics colNums
   where 
-    rowPics  = displayRow <$> toList field
-    numRows  = fromIntegral $ Seq.length field :: Float
-    rowNums  = [0.0..(numRows-1)]
+    colPics  = displayCol <$> toList field
+    numCols  = fromIntegral $ Seq.length field :: Float
+    colNums  = [0.0..(numCols-1)]
 
-displayRow :: Row -> G.Picture
-displayRow row = 
-  G.Pictures $ zipWith (\pic col-> G.translate (col*blockSize) 0 pic) elemPics colNums
+displayCol :: Column -> G.Picture
+displayCol row = 
+  G.Pictures $ zipWith (\pic row-> G.translate 0 (row*blockSize) pic) elemPics rowNums
   where 
     elemPics  = displayElem <$> toList row 
-    numCols   = fromIntegral $ Seq.length row :: Float
-    colNums   = [0.0..(numCols-1)]
+    numRows   = fromIntegral $ Seq.length row :: Float
+    rowNums   = [0.0..(numRows-1)]
 
 displayElem :: Occupied -> G.Picture
 displayElem Nothing          = G.Blank

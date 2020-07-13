@@ -15,9 +15,6 @@ playGame = do
   let initGame = startGame rand
   play window background fps initGame displayGame handleKeys update
 
-displayer :: G.Picture -> IO ()
-displayer = G.display window background
-
 -- | Maps key inputs to appopriate block movement actions.
 handleKeys :: Event -> Game -> Game
 handleKeys (EventKey (SpecialKey KeyDown) _ _ _)   = updateGame moveDown
@@ -111,10 +108,6 @@ displayBlock block@(Block shape location cubeColor) =
     locations'    = map (bimap fixDimX fixDimY) locations
     oneCube       = displayCube cubeColor
     translatePair = uncurry G.translate
-
-sampleField :: Field
-sampleField = Seq.fromList [Seq.fromList [Nothing, Just red, Just blue]
-                           ,Seq.fromList [Just yellow, Nothing, Just blue]]
 
 -- | Fix these areas
 displayField :: Field -> G.Picture

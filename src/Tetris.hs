@@ -63,20 +63,6 @@ startGame rand = Game {field   = initField
     (randVal, rand') = runState randomize rand
     initBlock        = mkBlockByInt randVal
 
-lightField :: Field
-lightField = Seq.fromList [Seq.fromList [Nothing, Just red, Just blue]
-                          ,Seq.fromList [Just orange, Nothing, Nothing]]
-
--- testRand :: StdGen
--- testRand = mkStdGen 0x2f
-
--- testBlock :: Block
--- testBlock = mkBlockByInt $ evalState randomize testRand 
-
--- testGame :: Game
--- testGame = Game{field=initField, score=0
---                ,rand=testRand, block=testBlock
---                ,playing=True}
 
 translate :: Int -> Int -> Block -> Block
 translate xOffset yOffset block =  block {location = updatedLocation}

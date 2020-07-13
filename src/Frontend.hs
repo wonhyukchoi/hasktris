@@ -148,8 +148,24 @@ displayScore score = moveScore . addColor . scaleDown $ text
     scaleDown   = G.scale scaleFactor scaleFactor
     text        = G.Text $ show score   
 
+displayGameOver :: Game -> G.Picture
+displayGameOver game = G.Pictures [line1, line2, line3]
+  where 
+    scaleFactor = 0.35
+    scaleDown   = G.scale scaleFactor scaleFactor
+
+    gameOver    = scaleDown $ G.color G.red $ G.Text "GAME OVER !\n"
+    line1       = G.translate (-150) 300 gameOver
+    
+    saysScore   = scaleDown $ G.color G.white $ G.Text "your score:"
+    line2       = G.translate (-150) 100 saysScore
+
+    finalScore  = score game
+    showScore   = scaleDown $ G.color G.red $ G.Text $ show finalScore
+    line3       = G.translate (-50) (-100) showScore
+
 displayGame :: Game -> G.Picture
-displayGame (Game _ _ _ _ False) = gameFrame
+displayGame game@(Game _ _ _ _ False) = displayGameOver game
 displayGame (Game field score rand block playing) = 
   G.Pictures [displayField field
              ,displayBlock block

@@ -167,7 +167,11 @@ updateColor color (x,y) field = field'
 randomize :: State StdGen Int
 randomize = state $ randomR (0,6)
 
+-- | Code structure left over from originally using State Monads,
+-- but had to change to match Gloss API.
+-- TODO: refactor (but for aesthetic purposes).
 updateGame :: (Block->Block) -> Game -> Game
+updateGame _ game@(Game _ _ _ _ False) = game
 updateGame move game@(Game field score rand block playing) = 
 
   let 
@@ -178,17 +182,25 @@ updateGame move game@(Game field score rand block playing) =
     newBlock         = mkBlockByInt randVal
     game'            = clearFullRows (Game field' score rand' block' playing)
 
+    aboveScreen :: Bool
+    aboveScreen = any (>=numVertical) yPoints
+      where cubeLocations = locateCubes block'
+            yPoints       = map snd cubeLocations
+
+    -- Game over determined if block is OOB but it's not falling.
+    gameOver = aboveScreen && not falling
+
   in 
     if 
     | falling -> 
       game{block = block'}
     
-    -- FIXME
-    | gameOver newBlock field' ->
+    | gameOver ->
        game{playing=False}
     
     | otherwise -> 
       game'{block=newBlock}
+
 
 -- | TODO: refactor this.
 -- Clears any full rows from the game and updates score.
@@ -231,11 +243,6 @@ transposeField field =
     transpose :: Int -> Field -> Field -> Field
     transpose (-1) _ building  = building 
     transpose n field building = transpose (n-1) field building |> getRow n field  
-
--- | Given a block and field, 
--- determines if the game is over or not.
-gameOver :: Block -> Field -> IsPlaying
-gameOver block field = any (`isOccupied` field) $ locateCubes block
 
 
 initLocation :: Int -> Location

@@ -95,6 +95,11 @@ gameFrame = G.color G.white $ G.rectangleWire width height
 cube :: G.Picture
 cube = G.rectangleSolid blockSize blockSize
 
+displayCube :: G.Color -> G.Picture
+displayCube color = G.Pictures [inside, outside]
+  where inside  = G.color color cube
+        outside = G.rectangleWire blockSize blockSize
+
 displayBlock :: Block -> G.Picture
 displayBlock block@(Block shape location cubeColor) = 
   G.pictures $ map translatePair locations' <*> [oneCube]
@@ -104,7 +109,7 @@ displayBlock block@(Block shape location cubeColor) =
     fixDimX x     = upSizeDim x + xBase
     fixDimY y     = upSizeDim y + yBase
     locations'    = map (bimap fixDimX fixDimY) locations
-    oneCube       = G.color cubeColor cube
+    oneCube       = displayCube cubeColor
     translatePair = uncurry G.translate
 
 sampleField :: Field
@@ -130,7 +135,7 @@ displayCol row =
 
 displayElem :: Occupied -> G.Picture
 displayElem Nothing          = G.Blank
-displayElem (Just cubeColor) = G.translate xBase yBase $ G.color cubeColor cube
+displayElem (Just cubeColor) = G.translate xBase yBase $ displayCube cubeColor
 
 displayScore :: Int -> G.Picture
 displayScore score = moveScore . addColor . scaleDown $ text 
@@ -144,11 +149,12 @@ displayScore score = moveScore . addColor . scaleDown $ text
     text        = G.Text $ show score   
 
 displayGame :: Game -> G.Picture
+displayGame (Game _ _ _ _ False) = gameFrame
 displayGame (Game field score rand block playing) = 
-  G.Pictures [gameFrame
-             ,displayField field
+  G.Pictures [displayField field
              ,displayBlock block
              ,displayScore score
+             ,gameFrame
              ,blackCover
              ,tetrisText
              ,scoreText]

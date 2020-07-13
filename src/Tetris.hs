@@ -6,7 +6,7 @@ module Tetris where
 import Control.Monad.State
 import System.Random
 import qualified Data.Sequence as Seq
-import Data.Sequence((!?), (><))
+import Data.Sequence((!?), (><), Seq(..), (|>))
 import Data.Maybe(fromMaybe, fromJust, isJust)
 import Graphics.Gloss(Color, red, green, blue, 
                       yellow, cyan, magenta, orange)
@@ -15,6 +15,7 @@ import Graphics.Gloss(Color, red, green, blue,
 -- that says if the block is full or not.
 type Field    = Seq.Seq Column
 type Column   = Seq.Seq Occupied
+type Row      = Seq.Seq Occupied
 
 -- | Whether block is occupied or not.
 type Occupied = Maybe Color
@@ -51,6 +52,7 @@ initField :: Field
 initField = Seq.fromList $ replicate numHorizontal row
   where row = Seq.fromList $ replicate numVertical Nothing
 
+-- | Creates a new game from RNG.
 startGame :: StdGen -> Game
 startGame rand = Game {field   = initField
                       ,score   = 0
@@ -174,40 +176,61 @@ updateGame move game@(Game field score rand block playing) =
     field'           = dumpColor block' field
     (randVal, rand') = runState randomize rand
     newBlock         = mkBlockByInt randVal
-    game'            = clearFullRows (Game field' score rand' newBlock playing)
-    -- FIXME
-    -- game'@(Game field'' score' _ _ _) = 
-    --   clearFullRows (Game field' score rand' block' playing)
-    -- game'' = Game field'' score' rand' block' playing
+    game'            = clearFullRows (Game field' score rand' block' playing)
 
   in 
     if 
     | falling -> 
       game{block = block'}
     
+    -- FIXME
     | gameOver newBlock field' ->
        game{playing=False}
     
     | otherwise -> 
-      game'
+      game'{block=newBlock}
 
--- | Clears all rows at the bottom that are full. 
+-- | TODO: refactor this.
+-- Clears any full rows from the game and updates score.
+-- Due to the fact that game is stupidly designed in (x,y) coordinates
+-- (instead of (row, column) indexing)
+-- needs to transpose the field twice in order to clear rows.
 clearFullRows :: Game -> Game
 clearFullRows game@(Game field score _ _ _) = 
-  if not bottomFull then game 
-    else clearFullRows game{field = newField, score = newScore}
+  if noFullRows then game
+  else 
+    clearFullRows game{field=field', score=score'}
 
-  where 
-    newField = clearBottom field
-    newScore = score + 100
+  where
+    transposed = transposeField field
 
-    bottomFull :: Bool
-    bottomFull = all isJust . fromJust $ Seq.lookup 0 field
+    notFull :: Row -> Bool
+    notFull = not . all isJust
 
-    clearBottom :: Field -> Field
-    clearBottom field = tails >< head
-      where tails = fromJust $ Seq.lookup 1 $ Seq.tails field
-            head  = Seq.fromList [Seq.fromList $ replicate numVertical Nothing]
+    -- Until you hit a full row
+    -- First elem of tails includes the full row.
+    (heads, tails_) = Seq.spanl notFull transposed
+    tails           = Seq.drop 1 tails_
+    fullRemoved     = heads >< tails
+
+    noFullRows      = null tails_
+    field'          = transposeField fullRemoved
+    score'          = score + 100
+
+-- | Tranpose a field.
+transposeField :: Field -> Field
+transposeField field = 
+  transpose (lenField-1) field Seq.Empty
+  where
+    lenField = length . fromJust $ field !? 0
+
+    getRow :: Int -> Field -> Row
+    getRow n = foldl (\acc col -> acc |> getElem col) Seq.Empty
+      where getElem = fromJust . flip (!?) n 
+
+    transpose :: Int -> Field -> Field -> Field
+    transpose (-1) _ building  = building 
+    transpose n field building = transpose (n-1) field building |> getRow n field  
 
 -- | Given a block and field, 
 -- determines if the game is over or not.
@@ -219,8 +242,6 @@ initLocation :: Int -> Location
 initLocation x = (x, numVertical)
 
 -- | Function to create new blocks.
--- FIXME: allow random spawning of blocks. 
--- FIXME: make the totality of the blocks appear at once.
 mkBlock :: Tetromino -> Block
 mkBlock I = Block iBlock (initLocation 0) red
   where iBlock = [(0,0), (0,-1), (0,-2), (0,-3)]
@@ -237,6 +258,7 @@ mkBlock S = Block sBlock (initLocation 5) magenta
 mkBlock Z = Block zBlock (initLocation 6) orange
   where zBlock = [(0,0), (1,0), (1,-1), (2,-1)]
 
+-- | Takes an integer to produce a block.
 mkBlockByInt :: Int -> Block
 mkBlockByInt 0 = mkBlock I
 mkBlockByInt 1 = mkBlock O

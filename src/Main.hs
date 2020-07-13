@@ -5,11 +5,8 @@ import qualified Tetris
 import qualified Frontend
 
 -- TODO: 
--- rotation is bugged
--- clearFullRows might not work?
--- gameOver might not be correct
--- occupied counter might start too early?
--- Obvious problem in dumpColor
+-- key presses registered twice
+-- gameOver incorrect
 
 -- | Main function.
 main :: IO ()
